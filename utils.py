@@ -164,7 +164,8 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
     return features
 # Define a single function that can extract features using hog sub-sampling and make predictions
 
-def find_cars(img, ystart, ystop, scale, color_space,
+def find_cars(img, xstart, xstop, ystart, ystop,
+              scale, color_space,
               svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
     # something wrong todo
 
@@ -172,7 +173,7 @@ def find_cars(img, ystart, ystop, scale, color_space,
     draw_heatmap = np.copy(img)
     img = img.astype(np.float32)/255
 
-    img_tosearch = img[ystart:ystop,:,:]
+    img_tosearch = img[ystart:ystop,xstart:xstop,:]
     # ctrans_tosearch = convert_color(img_tosearch, conv='RGB2YCrCb')
     ctrans_tosearch = convert_color(img_tosearch, color_space=color_space)
     if scale != 1:
@@ -230,79 +231,18 @@ def find_cars(img, ystart, ystop, scale, color_space,
                 xbox_left = np.int(xleft*scale)
                 ytop_draw = np.int(ytop*scale)
                 win_draw = np.int(window*scale)
-                cv2.rectangle(draw_img,(xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart),(0,0,255),6)
+                # cv2.rectangle(draw_img,(xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart),(0,0,255),6)
 
-                bboxes.append(((xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart)))
+                bboxes.append(((xbox_left+xstart, ytop_draw+ystart),(xbox_left+xstart+win_draw,ytop_draw+win_draw+ystart)))
 
-    heat_map, labels = heat_filter(draw_heatmap, bboxes)
+    # heat_map, labels = heat_filter(draw_heatmap, bboxes)
 
+    return bboxes
+
+def display_vehicle(img, bboxes):
+    heat_map, labels = heat_filter(img, bboxes)
     return heat_map, labels
-    # return draw_img
 
-# def find_cars(img, ystart, ystop, scale, color_space,
-#               svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
-#     # something wrong todo
-#
-#     draw_img = np.copy(img)
-#     draw_heatmap = np.copy(img)
-#     img = img.astype(np.float32)/255
-#
-#     img_tosearch = img[ystart:ystop,:,:]
-#     # ctrans_tosearch = convert_color(img_tosearch, conv='RGB2YCrCb')
-#     ctrans_tosearch = convert_color(img_tosearch, color_space=color_space)
-#     if scale != 1:
-#         imshape = ctrans_tosearch.shape
-#         ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
-#
-#     ch1 = ctrans_tosearch[:,:,0]
-#     ch2 = ctrans_tosearch[:,:,1]
-#     ch3 = ctrans_tosearch[:,:,2]
-#
-#     # Define blocks and steps as above
-#     nxblocks = (ch1.shape[1] // pix_per_cell) - cell_per_block + 1
-#     nyblocks = (ch1.shape[0] // pix_per_cell) - cell_per_block + 1
-#     nfeat_per_block = orient*cell_per_block**2
-#
-#     # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
-#     window = 64
-#     nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
-#     cells_per_step = 2  # Instead of overlap, define how many cells to step
-#     nxsteps = (nxblocks - nblocks_per_window) // cells_per_step + 1
-#     nysteps = (nyblocks - nblocks_per_window) // cells_per_step + 1
-#
-#
-#     bboxes = []
-#     for xb in range(nxsteps):
-#         for yb in range(nysteps):
-#             ypos = yb*cells_per_step
-#             xpos = xb*cells_per_step
-#
-#             xleft = xpos*pix_per_cell
-#             ytop = ypos*pix_per_cell
-#
-#             # Extract the image patch
-#             subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
-#
-#             test_features = single_img_features(subimg, color_space, spatial_size,
-#                                     hist_bins, orient,
-#                                     pix_per_cell, cell_per_block, hog_channel,
-#                                     spatial_feat, hist_feat, hog_feat)
-#             test_features = X_scaler.transform(test_features)
-#             #test_features = X_scaler.transform(np.hstack((shape_feat, hist_feat)).reshape(1, -1))
-#             test_prediction = svc.predict(test_features)
-#
-#             if test_prediction == 1:
-#                 xbox_left = np.int(xleft*scale)
-#                 ytop_draw = np.int(ytop*scale)
-#                 win_draw = np.int(window*scale)
-#                 cv2.rectangle(draw_img,(xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart),(0,0,255),6)
-#
-#                 bboxes.append(((xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart)))
-#
-#     heat_map, labels = heat_filter(draw_heatmap, bboxes)
-#
-#     return heat_map, labels
-#     # return draw_img
 
 # Define a function to extract features from a single image window
 # This function is very similar to extract_features()
