@@ -13,6 +13,7 @@ import os
 import time
 import pickle
 import glob
+from image_process import *
 
 
 # # global variable
@@ -111,6 +112,21 @@ def color_hist(img, nbins=32):    #bins_range=(0, 256)
     # Return the individual histograms, bin_centers and feature vector
     return hist_features
 
+def gradient_threshold(img):
+    ksize = 3
+    # Apply each of the thresholding functions
+    gradx = abs_sobel_thresh(img, orient='x', sobel_kernel=ksize, thresh=(20, 80))
+    grady = abs_sobel_thresh(img, orient='y', sobel_kernel=ksize, thresh=(10, 100))
+    mag_binary = mag_thresh(img, sobel_kernel=ksize, thresh=(35, 100))
+    dir_binary = dir_threshold(img, sobel_kernel=ksize, thresh=(0., 1.3))
+    combined = np.zeros_like(img[:,:,0])
+    combined[(mag_binary ==1)] = 1
+    return(combined)
+
+def hist_gradient(img):
+    combined = gradient_threshold(img)
+    return np.histogram(np.sum(combined, axis=0), bins=32)[0]
+
 # Define a function to extract features from a list of images
 # Have this function call bin_spatial() and color_hist()
 def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
@@ -159,6 +175,10 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
                             pix_per_cell, cell_per_block, vis=False, feature_vec=True)
             # Append the new feature vector to the features list
             file_features.append(hog_features)
+
+        # gradient features
+        gradient_features = hist_gradient(image)
+        file_features.append(gradient_features)
         features.append(np.concatenate(file_features))
     # Return list of feature vectors
     return features
@@ -166,7 +186,7 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
 
 def find_cars(img, xstart, xstop, ystart, ystop,
               scale, color_space,
-              svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
+              svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins, window=64):
     # something wrong todo
 
     draw_img = np.copy(img)
@@ -190,7 +210,6 @@ def find_cars(img, xstart, xstop, ystart, ystop,
     nfeat_per_block = orient*cell_per_block**2
 
     # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
-    window = 64
     nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
     cells_per_step = 2  # Instead of overlap, define how many cells to step
     nxsteps = (nxblocks - nblocks_per_window) // cells_per_step + 1
@@ -222,8 +241,11 @@ def find_cars(img, xstart, xstop, ystart, ystop,
             spatial_features = bin_spatial(subimg, size=spatial_size)
             hist_features = color_hist(subimg, nbins=hist_bins)
 
+            gradient_features = hist_gradient(subimg)
+
             # Scale features and make a prediction
-            test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1))
+            test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features, gradient_features)).reshape(1, -1))
+
             #test_features = X_scaler.transform(np.hstack((shape_feat, hist_feat)).reshape(1, -1))
             test_prediction = svc.predict(test_features)
 
@@ -445,7 +467,8 @@ def heat_filter(image, box_list, plot=False, threshold=1):
 
     return draw_img, labels
 
-def sanity_check(img, bbox):
+def sanity_predict_again(img, bbox):
+    # model predict again
     xleft, ytop, xright, ydown = np.array(bbox).reshape(-1)
 
     imgfilter = img[ytop:ydown,xleft:xright,:]
@@ -462,3 +485,17 @@ def sanity_check(img, bbox):
     test_prediction = svc.predict(test_features)
 
     return test_prediction == 1
+
+def sanity_track_heat(img, boxes_list):
+    filter_boxes = []
+    last_boxes = boxes_list[-1]
+    for box in last_boxes:
+        if sanity_check_heat(img, box, boxes_list[:-1]):
+            filter_boxes.append(box)
+    return filter_boxes
+
+def sanity_check_heat(img, box, boxes_list):
+    box_list = boxes_list[0] + boxes_list[1] + [box]
+    _, labels = heat_filter(img, box_list, plot=False, threshold=2)
+    boxes = labels2boxes(labels)
+    return len(boxes) > 0
