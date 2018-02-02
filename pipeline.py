@@ -36,26 +36,37 @@ def pipeline(img, isvideo=True):
         im = Image.fromarray(img)
         im.save("unusual_images/error_{}.jpg".format(img_name))
         raise
-
+    # return l.result
     # vehicle detect
 
     ystart = 400
     ystop = 656
     scale = 1.5
 
-    track_records = {}
-    labels_boxes = []
-    labels_num = None
+    # track_records = {}
+    # labels_boxes = []
+    # labels_num = None
 
-    bboxes = find_cars(l.result, 0, 400, ystart, ystop,
-                        scale, color_space,
+    bboxes = []
+    bboxes += find_cars(l.result, 0, 400, 400, 500,
+                        1.25, color_space,
                         svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
-    bboxes += find_cars(l.result, 800, 1280, ystart, ystop,
-                        scale, color_space,
+    bboxes += find_cars(l.result, 0, 400, 400, 656,
+                        1.5, color_space,
                         svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
-    bboxes += find_cars(l.result, 0, 1280, 400, 500,
+
+    bboxes += find_cars(l.result, 800, 1280, 400, 500,
                         1.05, color_space,
                         svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+
+    bboxes += find_cars(l.result, 800, 1280, 400, 550,
+                        1.25, color_space,
+                        svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+    bboxes += find_cars(l.result, 800, 1280, 400, 656,
+                        1.5, color_space,
+                        svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+
+
 
     out_img, labels = display_vehicle(l.result, bboxes)
 
@@ -69,6 +80,7 @@ def pipeline(img, isvideo=True):
         labels_num_list.append(labels[1])
 
         boxes = labels2boxes(labels)
+        print(boxes)
         # print(boxes)
         if os.path.exists('data_analysis.p'):
             data_analysis = pickle.load(open('data_analysis.p', 'rb'))
@@ -90,17 +102,13 @@ def pipeline(img, isvideo=True):
         else:
             out_img = l.result
         data_analysis['boxes_draw'].append(boxes)
-        print(boxes)
+        print('after sanity check:{}'.format(boxes))
         if len(boxes) > 2:
             # img_name = '-'.join([str(x) for x in time.localtime(time.time())[:5]])
             img_name = str(time.time())
             im = Image.fromarray(img)
             im.save("unusual_images/unusual_{}.jpg".format(img_name))
 
-
-        # labels_num = labels[1]
-        # track_records['labels_boxes'] = labels_boxes
-        # track_records['labels_num'] = labels_num
 
         with open('data_analysis.p', 'wb') as f:
             pickle.dump(data_analysis, f)
@@ -144,10 +152,10 @@ if __name__ == '__main__':
 
 
     # video preprocessing
-    input_video = 'test_video.mp4'
-    # input_video = 'project_video.mp4'
-    # clip = VideoFileClip(input_video).subclip(3,10)
+    # input_video = 'test_video.mp4'
+    input_video = 'project_video.mp4'
     clip = VideoFileClip(input_video)
+    # clip = VideoFileClip(input_video).subclip(22,25)
     output_clip = clip.fl_image(pipeline)
     output_clip.write_videofile('output_' + input_video, audio=False)
 

@@ -186,7 +186,7 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
 
 def find_cars(img, xstart, xstop, ystart, ystop,
               scale, color_space,
-              svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins, window=64):
+              svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
     # something wrong todo
 
     draw_img = np.copy(img)
@@ -210,16 +210,20 @@ def find_cars(img, xstart, xstop, ystart, ystop,
     nfeat_per_block = orient*cell_per_block**2
 
     # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
+    window=64
     nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
     cells_per_step = 2  # Instead of overlap, define how many cells to step
     nxsteps = (nxblocks - nblocks_per_window) // cells_per_step + 1
     nysteps = (nyblocks - nblocks_per_window) // cells_per_step + 1
 
+    start = time.time()
     # Compute individual channel HOG features for the entire image
     hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
     hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
     hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    # print('time for getting hog features:{}s'.format(time.time() - start))
 
+    startwindows= time.time()
     bboxes = []
     for xb in range(nxsteps):
         for yb in range(nysteps):
@@ -235,7 +239,9 @@ def find_cars(img, xstart, xstop, ystart, ystop,
             ytop = ypos*pix_per_cell
 
             # Extract the image patch
-            subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
+            # subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
+            # no need to resize
+            subimg = ctrans_tosearch[ytop:ytop+window, xleft:xleft+window]
 
             # Get color features
             spatial_features = bin_spatial(subimg, size=spatial_size)
@@ -247,7 +253,9 @@ def find_cars(img, xstart, xstop, ystart, ystop,
             test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features, gradient_features)).reshape(1, -1))
 
             #test_features = X_scaler.transform(np.hstack((shape_feat, hist_feat)).reshape(1, -1))
+            start = time.time()
             test_prediction = svc.predict(test_features)
+            # print('time for prediction:{}s'.format(time.time() - start))
 
             if test_prediction == 1:
                 xbox_left = np.int(xleft*scale)
@@ -256,7 +264,7 @@ def find_cars(img, xstart, xstop, ystart, ystop,
                 # cv2.rectangle(draw_img,(xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart),(0,0,255),6)
 
                 bboxes.append(((xbox_left+xstart, ytop_draw+ystart),(xbox_left+xstart+win_draw,ytop_draw+win_draw+ystart)))
-
+    # print('time for search_windows:{}s'.format(time.time() - startwindows))
     # heat_map, labels = heat_filter(draw_heatmap, bboxes)
 
     return bboxes
@@ -491,6 +499,7 @@ def sanity_track_heat(img, boxes_list):
     last_boxes = boxes_list[-1]
     for box in last_boxes:
         if sanity_check_heat(img, box, boxes_list[:-1]) and iscar(box):
+        # if sanity_check_heat(img, box, boxes_list[:-1]):
             filter_boxes.append(box)
     return filter_boxes
 
@@ -535,6 +544,9 @@ def info(box):
     return center, height, high, diagonal
 
 def iscar(box):
-    _, height, high, diagonal = info(box)
-    return abs(diagonal/high - 0.735) < 0.2 and abs(high/height - 2.283) < 0.6
+    center, height, high, diagonal = info(box)
+    if center[0] < 600:
+        return (abs(diagonal/high - 0.735) < 0.2 and abs(high/height - 2.283) < 0.6)
+    else:
+        return True
     # return abs(high/height - 2.283) < 0.6

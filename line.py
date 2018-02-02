@@ -4,8 +4,8 @@ from PIL import Image
 import time
 import numpy as np
 import pandas as pd
-class wantError (Exception):  
-    pass  
+class wantError (Exception):
+    pass
 
 class Line(img_camera):
     def __init__(self, img, auto=False, load_line=False):
@@ -42,10 +42,10 @@ class Line(img_camera):
         self.right_curverad = None
         self.dist_from_center_in_meters = None
 
-        
+
         # if self.left_fit is None and os.path.exists('line_fit.p'):
         if os.path.exists('line_fit.p'):
-            new_enough = abs(os.stat('line_fit.p').st_atime - time.time()) < 2
+            new_enough = abs(os.stat('line_fit.p').st_atime - time.time()) < 10 # vechile detection will cost 5s
             if new_enough:
                 self.load_line_fit()
 
@@ -72,7 +72,7 @@ class Line(img_camera):
             self.save_line_fit()
             if self.dist_from_center_in_meters >= 0.4:
                 self.unusual_save()
-        
+
 
     def update_base_points(self):
         # return Ture or False update
@@ -90,7 +90,7 @@ class Line(img_camera):
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
         self.midpoint = midpoint
 
-        
+
         if self.leftx_base is None:
             self.leftx_base = leftx_base
             self.rightx_base = rightx_base
@@ -106,7 +106,7 @@ class Line(img_camera):
         # need to be optimized
         binary_warped = self.binary_top_down_image
         update = self.update_base_points()
-        
+
         rnd = np.random.randint(0,5)
         if os.path.exists('line_fit.p') and not update and rnd > 0:
             try:
@@ -152,7 +152,7 @@ class Line(img_camera):
             plt.plot(right_fitx, ploty, color='yellow')
             plt.xlim(0, out_img.shape[1])
             plt.ylim(out_img.shape[0], 0)
-        
+
         self.out_img = out_img
         self.ploty = ploty
         # sanity check
@@ -168,18 +168,18 @@ class Line(img_camera):
         # self.leftx_base = int(left_fitx[-1])
         # self.rightx_base = int(right_fitx[-1])
         # sanity check
-        
+
 
         return out_img
 
     def generate_line_fit_with_windows(self, nwindows = 9, margin = 100, minpix = 50):
-        # np.where maybe can be used to simplify 
-            
+        # np.where maybe can be used to simplify
+
         binary_warped = self.binary_top_down_image
         leftx_current = self.leftx_base
         rightx_current = self.rightx_base
         out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
-        
+
 
         nonzero = binary_warped.nonzero()
         nonzeroy = np.array(nonzero[0])
@@ -199,8 +199,8 @@ class Line(img_camera):
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
             # Draw the windows on the visualization image
-            cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high), (0,255,0), 2) 
-            cv2.rectangle(out_img,(win_xright_low,win_y_low),(win_xright_high,win_y_high), (0,255,0), 2) 
+            cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high), (0,255,0), 2)
+            cv2.rectangle(out_img,(win_xright_low,win_y_low),(win_xright_high,win_y_high), (0,255,0), 2)
             # Identify the nonzero pixels in x and y within the window
             good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
             good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
@@ -210,7 +210,7 @@ class Line(img_camera):
             # If you found > minpix pixels, recenter next window on their mean position
             if len(good_left_inds) > minpix:
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
-            if len(good_right_inds) > minpix:        
+            if len(good_right_inds) > minpix:
                 rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
 
         # Concatenate the arrays of indices
@@ -219,9 +219,9 @@ class Line(img_camera):
 
         # Extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
+        lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds] 
+        righty = nonzeroy[right_lane_inds]
 
         # Fit a second order polynomial to each
         left_fit = np.polyfit(lefty, leftx, 2)
@@ -249,15 +249,15 @@ class Line(img_camera):
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
         margin = 100
-        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) 
-            & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
+        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin))
+            & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
 
-        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) 
-            & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
+        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin))
+            & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
 
         # Again, extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
+        lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
         # Fit a second order polynomial to each
@@ -346,7 +346,7 @@ class Line(img_camera):
         cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
         # Warp the blank back to original image space using inverse perspective matrix (Minv)
-        newwarp = cv2.warpPerspective(color_warp, Minv, (warped.shape[1], warped.shape[0])) 
+        newwarp = cv2.warpPerspective(color_warp, Minv, (warped.shape[1], warped.shape[0]))
         # Combine the result with the original image
         result = cv2.addWeighted(img, 1, newwarp, 0.3, 0)
         text_dist = 'Distance from lane center: {:.3f}m'.format(self.dist_from_center_in_meters)
@@ -362,7 +362,7 @@ class Line(img_camera):
     def sanity_check(self):
         df = pd.read_csv('track_records.csv')
         if  len(df) > 10:
-            left_check = df['left_curverad'].iloc[-1] > 2 * df['left_curverad'][-10:].mean() 
+            left_check = df['left_curverad'].iloc[-1] > 2 * df['left_curverad'][-10:].mean()
             right_check =  df['right_curverad'].iloc[-1] > 2 * df['right_curverad'][-10:].mean()
             center_check = df['dist_from_center_in_meters'].iloc[-1] > 2 * df['dist_from_center_in_meters'][-10:].mean()
             return(left_check | right_check | center_check)
@@ -373,7 +373,7 @@ class Line(img_camera):
         img_name = self.img_name
         im = Image.fromarray(self.img)
         if not os.path.exists(filename + '_images'):
-            os.mkdir(filename + '_images')                
+            os.mkdir(filename + '_images')
         im.save(filename + "_images/unusual_{}.jpg".format(img_name))
         if not os.path.exists(filename + '_lines'):
             os.mkdir(filename + '_lines')
@@ -381,8 +381,8 @@ class Line(img_camera):
 
 
     def save_line_fit(self):
-        # line_fit = {'left': self.left_fit, 'right': self.right_fit, 
-        # 'leftx_base': self.leftx_base, 
+        # line_fit = {'left': self.left_fit, 'right': self.right_fit,
+        # 'leftx_base': self.leftx_base,
         # 'rightx_base': self.rightx_base,
         # 'left_fitx': self.left_fitx,
         # 'right_fitx': self.right_fitx}
