@@ -490,12 +490,51 @@ def sanity_track_heat(img, boxes_list):
     filter_boxes = []
     last_boxes = boxes_list[-1]
     for box in last_boxes:
-        if sanity_check_heat(img, box, boxes_list[:-1]):
+        if sanity_check_heat(img, box, boxes_list[:-1]) and iscar(box):
             filter_boxes.append(box)
+    return filter_boxes
+
+def sanity_track_heat2(img, boxes_list):
+    box_list = []
+    for boxes in boxes_list:
+        box_list += boxes
+    box_list_filter = []
+    for box in box_list:
+        if iscar(box):
+            box_list_filter.append(box)
+    _, labels = heat_filter(img, box_list_filter, plot=False, threshold=2)
+    labels_boxes = labels2boxes(labels)
+    filter_boxes = labels_boxes
+    # for box in labels_boxes:
+    #     if iscar(box):
+    #         filter_boxes.append(box)
     return filter_boxes
 
 def sanity_check_heat(img, box, boxes_list):
     box_list = boxes_list[0] + boxes_list[1] + [box]
     _, labels = heat_filter(img, box_list, plot=False, threshold=2)
     boxes = labels2boxes(labels)
-    return len(boxes) > 0
+    return len(boxes) > 0, boxes
+
+
+
+def distance(p1, p2):
+    dis = ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2) ** 0.5
+    return dis
+
+def seemone(b1, b2):
+    center1 = (np.array(b1[0]) + np.array(b1[1]))/2
+    center2 = (np.array(b2[0]) + np.array(b2[1]))/2
+    return distance(center1, center2) <  distance(*b1)
+
+def info(box):
+    center = (np.array(box[0]) + np.array(box[1]))/2
+    height = box[1][1] - box[0][1]
+    high = 720 - center[1]
+    diagonal = distance(*box)
+    return center, height, high, diagonal
+
+def iscar(box):
+    _, height, high, diagonal = info(box)
+    return abs(diagonal/high - 0.735) < 0.2 and abs(high/height - 2.283) < 0.6
+    # return abs(high/height - 2.283) < 0.6

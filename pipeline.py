@@ -146,7 +146,7 @@ if __name__ == '__main__':
     # video preprocessing
     input_video = 'test_video.mp4'
     # input_video = 'project_video.mp4'
-    # clip = VideoFileClip(input_video).subclip(39,43)
+    # clip = VideoFileClip(input_video).subclip(3,10)
     clip = VideoFileClip(input_video)
     output_clip = clip.fl_image(pipeline)
     output_clip.write_videofile('output_' + input_video, audio=False)
